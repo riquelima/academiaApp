@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-// Removed: import './styles/globals.css';
+import './styles/globals.css'; // Re-enabled import
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
