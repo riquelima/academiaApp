@@ -56,21 +56,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn("AuthContext: profile.user_roles found, but role_name is not a string or format is unexpected:", profile.user_roles);
       }
       
-      // Note: profile.avatar_url is the path. getStoragePublicUrl is used in components.
       const avatarPublicUrl = profile.avatar_url ? getStoragePublicUrl(SUPABASE_AVATARS_BUCKET, profile.avatar_url) : undefined;
 
       setUser({
         id: supabaseUser.id,
         email: supabaseUser.email,
         name: profile.full_name || undefined,
-        avatar_url: avatarPublicUrl, // Store the public URL directly if needed by Header immediately
-                                        // Or keep as path and let Header resolve. For consistency with StudentContext, Header should resolve.
-                                        // Let's keep it as path as StudentContext does. Header already handles getStoragePublicUrl.
+        avatar_url: avatarPublicUrl,
         role_name: determinedRoleName,
       });
     } else {
-         // This case means profile is null, but no specific PGRST116 error was caught prior.
-         // This might happen if .single() returns null without error, or if logic leads here.
          setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' }); 
     }
   };
@@ -120,8 +115,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
           setIsAuthenticated(false);
         }
-        // Initial loading is primarily handled by getInitialSessionAsync's finally block.
-        // Subsequent changes might set isLoading if needed, but not for this app's current main loading screen.
       }
     );
 
@@ -133,27 +126,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: AuthError | null }> => {
     if (!password) return { success: false, error: { message: "Password is required", name: "InputError", status: 400 } as AuthError };
-    setIsLoading(true); // For login operation specifically
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setIsLoading(false); // Reset after login attempt
-    if (error) {
-      console.error("Login failed:", error.message || JSON.stringify(error));
-      return { success: false, error };
+    
+    setIsLoading(true);
+    let operationError: AuthError | null = null;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      operationError = error;
+    } catch (e: any) {
+      console.error("Exception during signInWithPassword:", e);
+      operationError = { name: "SignInException", message: e.message || "Unknown error during sign in" } as AuthError;
+    } finally {
+      setIsLoading(false);
+    }
+
+    if (operationError) {
+      console.error("Login failed:", operationError.message || JSON.stringify(operationError));
+      return { success: false, error: operationError };
     }
     // Auth state change will trigger profile fetch and set isAuthenticated
     return { success: true };
   };
 
   const logout = async (): Promise<{ error: AuthError | null }> => {
-    setIsLoading(true); // For logout operation
-    const { error } = await supabase.auth.signOut();
+    setIsLoading(true);
+    let operationError: AuthError | null = null;
+    try {
+      const { error } = await supabase.auth.signOut();
+      operationError = error;
+    } catch (e: any) {
+      console.error("Exception during signOut:", e);
+      operationError = { name: "SignOutException", message: e.message || "Unknown error during sign out" } as AuthError;
+    } finally {
+      setIsLoading(false);
+    }
+    
+    if (operationError) console.error("Logout failed:", operationError.message || JSON.stringify(operationError));
     // onAuthStateChange will handle setting user, session, isAuthenticated
-    setIsLoading(false); // Reset after logout attempt
-    if (error) console.error("Logout failed:", error.message || JSON.stringify(error));
-    return { error };
+    return { error: operationError };
   };
   
-  // This is the main app loading screen condition
   if (isLoading && !session && !user) { 
      return (
         <div className="flex items-center justify-center h-screen bg-primary-dark text-white">
