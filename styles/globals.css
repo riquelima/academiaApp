@@ -1,0 +1,22 @@
+/*
+  This file can be used for very minimal global styles if absolutely necessary.
+  However, the primary styling mechanism should be Tailwind CSS utility classes.
+  For example, you might put base font settings or body background here if not handled in index.html or App.tsx.
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
