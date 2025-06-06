@@ -1,5 +1,5 @@
 {
-  "name": "academia_v2_melhoriasbugs",
+  "name": "academia-12/08---sistema-de-gerenciamento",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,10 +11,7 @@
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.2",
-    "@heroicons/react": "^2.2.0",
-    "recharts": "^2.15.3",
-    "@supabase/supabase-js": "^2.45.0"
+    "react-router-dom": "^7.6.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

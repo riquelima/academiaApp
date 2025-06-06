@@ -1,86 +1,72 @@
 
-
-import React, { useState, FormEvent } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import Input from '../components/common/Input';
-import Button from '../components/common/Button';
-import { APP_NAME } from '../constants';
-import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../App';
+import { mockUser } from '../data/mockData';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  if (isAuthenticated && !isLoading) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) {
-      setError('E-mail e senha são obrigatórios.');
-      return;
-    }
-    const result = await login(email, password);
-    if (result.success) {
+    // Simulação de autenticação
+    if (email === 'admin@academia.com' && password === '1234') {
+      login(mockUser);
       navigate('/dashboard');
     } else {
-      setError(result.error?.message || 'Falha no login. Verifique suas credenciais.');
+      setError('E-mail ou senha inválidos.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-dark via-slate-900 to-primary-dark py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 sm:p-10 rounded-xl shadow-2xl">
-        <div>
-          <h1 className="text-center text-4xl font-extrabold text-primary-purple">
-            {APP_NAME}
-          </h1>
-          <p className="mt-2 text-center text-sm text-slate-400">
-            Bem-vindo de volta! Faça login para continuar.
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <Input
-            label="E-mail"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
-            icon={<EnvelopeIcon />}
-            aria-required="true"
-          />
-          <Input
-            label="Senha"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Sua senha"
-            icon={<LockClosedIcon />}
-            aria-required="true"
-          />
+    <div className="min-h-screen flex items-center justify-center bg-dark-bg p-4">
+      <div className="bg-dark-card p-8 rounded-lg shadow-2xl w-full max-w-md">
+        <h1 className="text-3xl font-bold text-brand-purple mb-2 text-center">Academia 12/08</h1>
+        <p className="text-center text-medium-text mb-8">Bem-vindo de volta!</p>
+        
+        {error && <p className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</p>}
 
-          {error && <p role="alert" className="text-sm text-red-400 text-center">{error}</p>}
-
-          <div>
-            <Button type="submit" className="w-full" isLoading={isLoading} size="lg">
-              Entrar
-            </Button>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-medium-text mb-1">E-mail</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-light-text focus:ring-2 focus:ring-brand-purple focus:border-transparent outline-none"
+              placeholder="seuemail@exemplo.com"
+              required
+            />
           </div>
+          <div className="mb-6">
+            <label htmlFor="password" className="block text-sm font-medium text-medium-text mb-1">Senha</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-light-text focus:ring-2 focus:ring-brand-purple focus:border-transparent outline-none"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-brand-purple text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+          >
+            Entrar
+          </button>
         </form>
-        <p className="mt-6 text-center text-xs text-slate-500">
-          Senha de teste: email: <span className="font-semibold">admin@academia.com</span>, senha: <span className="font-semibold">1234</span>
+        <p className="mt-8 text-xs text-center text-medium-text bg-gray-700 p-3 rounded-md">
+          <strong>Senha de teste:</strong><br />
+          Email: <code className="text-purple-400">admin@academia.com</code><br/>
+          Senha: <code className="text-purple-400">1234</code>
         </p>
       </div>
     </div>

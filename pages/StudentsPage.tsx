@@ -1,240 +1,192 @@
 
-import React, { useState, useEffect } from 'react';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
-import { Student, PaymentStatus, PlanTier } from '../types';
-import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import Input from '../components/common/Input';
-import { DEFAULT_STUDENT_PHOTO, AVAILABLE_PLANS } from '../constants';
-import AddStudentModal from '../components/students/AddStudentModal';
-import ConfirmationModal from '../components/common/ConfirmationModal';
-import StudentDetailsModal from '../components/students/StudentDetailsModal'; // Import StudentDetailsModal
-import { useStudent } from '../contexts/StudentContext';
+import React, { useState, useMemo } from 'react';
+import { studentsData as initialStudentsData } from '../data/mockData';
+import { Student } from '../types';
+import { IconSearch, IconPlus, IconEdit, IconTrash } from '../constants';
+import Modal from '../components/Modal';
 
-const getPaymentStatusClass = (status: PaymentStatus) => {
-  switch (status) {
-    case PaymentStatus.PAID: return 'bg-green-500/20 text-green-400';
-    case PaymentStatus.WARNING: return 'bg-yellow-500/20 text-yellow-400';
-    case PaymentStatus.DUE: return 'bg-red-500/20 text-red-400';
-    default: return 'bg-slate-500/20 text-slate-400';
-  }
+const StudentRow: React.FC<{ student: Student; onEdit: (student: Student) => void; onDelete: (id: string) => void }> = ({ student, onEdit, onDelete }) => {
+  const paymentStatusColor = 
+    student.paymentStatus === 'Em dia' ? 'bg-green-500/20 text-green-400' :
+    student.paymentStatus === 'Atrasado' ? 'bg-red-500/20 text-red-400' :
+    'bg-yellow-500/20 text-yellow-400';
+
+  return (
+    <tr className="border-b border-dark-border hover:bg-gray-700/50 transition-colors">
+      <td className="p-3 whitespace-nowrap">
+        <img src={student.photoUrl} alt={student.name} className="w-10 h-10 rounded-full object-cover" />
+      </td>
+      <td className="p-3 whitespace-nowrap">
+        <div className="font-medium text-light-text">{student.name}</div>
+        <div className="text-xs text-medium-text">{student.membershipType}</div>
+      </td>
+      <td className="p-3 whitespace-nowrap text-medium-text">{student.cpf}</td>
+      <td className="p-3 whitespace-nowrap text-medium-text">{student.phone}</td>
+      <td className="p-3 whitespace-nowrap">
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${paymentStatusColor}`}>
+          {student.paymentStatus}
+        </span>
+      </td>
+      <td className="p-3 whitespace-nowrap space-x-2">
+        <button onClick={() => onEdit(student)} className="text-blue-400 hover:text-blue-300 p-1" title="Editar Aluno">
+          <IconEdit className="w-5 h-5" />
+        </button>
+        <button onClick={() => onDelete(student.id)} className="text-red-400 hover:text-red-300 p-1" title="Excluir Aluno">
+          <IconTrash className="w-5 h-5" />
+        </button>
+      </td>
+    </tr>
+  );
 };
 
-const getPlanNameById = (planId?: string): PlanTier | string => {
-  if (!planId) return 'N/A';
-  const plan = AVAILABLE_PLANS.find(p => p.id === planId);
-  return plan ? plan.name : 'Desconhecido';
-}
-
 const StudentsPage: React.FC = () => {
-  const { students, addStudent, updateStudent, deleteStudent, isLoading: studentsLoading } = useStudent();
+  const [students, setStudents] = useState<Student[]>(initialStudentsData);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showStudentModal, setShowStudentModal] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
-  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   
-  const [showDetailsModal, setShowDetailsModal] = useState(false); 
-  const [selectedStudentForDetails, setSelectedStudentForDetails] = useState<Student | null>(null); 
+  // Form state for new/edit student
+  const [formData, setFormData] = useState<Partial<Student>>({
+    name: '', cpf: '', phone: '', paymentStatus: 'Pendente', membershipType: 'Mensal', photoUrl: 'https://picsum.photos/seed/newstudent/40/40'
+  });
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (student.cpf && student.cpf.includes(searchTerm))
-  );
-  
-  const handleOpenAddModal = () => {
-    setEditingStudent(null);
-    setShowStudentModal(true);
-  };
-
-  const handleOpenEditModal = (student: Student) => {
-    setEditingStudent(student);
-    setShowStudentModal(true);
-  };
-
-  const handleOpenDeleteConfirm = (student: Student) => {
-    setStudentToDelete(student);
-    setShowDeleteConfirmModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (studentToDelete) {
-      const result = await deleteStudent(studentToDelete.id);
-      if (!result.success && result.error) {
-        alert(`Falha ao excluir aluno: ${result.error.message}`);
-      }
-    }
-    setShowDeleteConfirmModal(false);
-    setStudentToDelete(null);
-  };
-  
-  const handleSaveStudent = async (studentData: Partial<Student> & { email?: string; password?: string; photoFile?: File | null }) => {
-    let result: { success: boolean; error?: any } | undefined;
-
-    if (editingStudent) { 
-      result = await updateStudent({ ...studentData, id: editingStudent.id }); 
-    } else { 
-      if (!studentData.email) {
-          alert("Erro: Email é obrigatório para novos alunos.");
-          return;
-      }
-      const { 
-        id, paymentStatus, planExpiryDate, photoUrl, 
-        email, password, photoFile,                 
-        ...otherStudentProps                      
-      } = studentData;
-
-      const payloadForAdd: Partial<Omit<Student, 'id' | 'paymentStatus' | 'planExpiryDate' | 'photoUrl'>> & { email: string; password?: string; photoFile?: File | null } = {
-          ...otherStudentProps, 
-          email: email as string, 
-          password: password,
-          photoFile: photoFile
-      };
-      result = await addStudent(payloadForAdd);
-    }
-
-    if (result && result.success) {
-      setShowStudentModal(false);
-      setEditingStudent(null);
-    } else if (result && result.error) {
-      alert(`Falha ao salvar aluno: ${result.error.message}`);
-      // Optionally, do not close the modal on error, or handle error display within the modal.
-      // For now, the modal will close before the alert.
-    } else {
-        alert("Ocorreu um erro desconhecido ao salvar o aluno.");
-    }
-  };
-
-  const handleOpenDetailsModal = (student: Student) => {
-    setSelectedStudentForDetails(student);
-    setShowDetailsModal(true);
-  };
-
-
-  if (studentsLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-slate-300 text-lg">Carregando alunos...</p>
-      </div>
+  const filteredStudents = useMemo(() => {
+    return students.filter(student =>
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.cpf.includes(searchTerm)
     );
-  }
+  }, [students, searchTerm]);
+
+  const handleOpenModal = (student: Student | null = null) => {
+    setEditingStudent(student);
+    if (student) {
+      setFormData(student);
+    } else {
+      setFormData({ name: '', cpf: '', phone: '', paymentStatus: 'Pendente', membershipType: 'Mensal', photoUrl: `https://picsum.photos/seed/${Date.now()}/40/40` });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingStudent(null);
+    setFormData({ name: '', cpf: '', phone: '', paymentStatus: 'Pendente', membershipType: 'Mensal', photoUrl: 'https://picsum.photos/seed/newstudent/40/40' });
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingStudent) {
+      setStudents(students.map(s => s.id === editingStudent.id ? { ...s, ...formData } as Student : s));
+    } else {
+      const newStudent: Student = {
+        id: `s${Date.now()}`,
+        ...formData,
+      } as Student;
+      setStudents([newStudent, ...students]);
+    }
+    handleCloseModal();
+  };
+
+  const handleDeleteStudent = (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este aluno?')) {
+      setStudents(students.filter(s => s.id !== id));
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <h1 className="text-3xl font-bold text-slate-100">Gerenciamento de Alunos</h1>
-        <Button 
-          onClick={handleOpenAddModal}
-          leftIcon={<PlusIcon className="h-5 w-5" />}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <h2 className="text-2xl md:text-3xl font-semibold text-light-text">Gerenciamento de Alunos</h2>
+        <button 
+          onClick={() => handleOpenModal()}
+          className="bg-brand-purple hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors"
         >
-          Novo Aluno
-        </Button>
+          <IconPlus className="w-5 h-5" />
+          <span>Novo Aluno</span>
+        </button>
       </div>
 
-      <Card>
-        <div className="p-4 border-b border-slate-700">
-          <Input 
-            placeholder="Buscar por nome ou CPF..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            icon={<MagnifyingGlassIcon />}
-          />
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <IconSearch className="w-5 h-5 text-medium-text" />
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-700">
-            <thead className="bg-slate-700/50">
+        <input
+          type="text"
+          placeholder="Buscar por nome ou CPF..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-3 pl-10 bg-dark-card border border-dark-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-purple outline-none"
+        />
+      </div>
+
+      <div className="bg-dark-card shadow-lg rounded-lg overflow-x-auto">
+        <table className="w-full min-w-[700px]">
+          <thead className="bg-gray-700/30">
+            <tr>
+              <th className="p-3 text-left text-xs font-semibold text-medium-text uppercase tracking-wider">Foto</th>
+              <th className="p-3 text-left text-xs font-semibold text-medium-text uppercase tracking-wider">Nome</th>
+              <th className="p-3 text-left text-xs font-semibold text-medium-text uppercase tracking-wider">CPF</th>
+              <th className="p-3 text-left text-xs font-semibold text-medium-text uppercase tracking-wider">Telefone</th>
+              <th className="p-3 text-left text-xs font-semibold text-medium-text uppercase tracking-wider">Status Pag.</th>
+              <th className="p-3 text-left text-xs font-semibold text-medium-text uppercase tracking-wider">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-dark-border">
+            {filteredStudents.length > 0 ? (
+              filteredStudents.map(student => (
+                <StudentRow key={student.id} student={student} onEdit={handleOpenModal} onDelete={handleDeleteStudent} />
+              ))
+            ) : (
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Foto</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Nome</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">CPF</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Telefone</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status Pag.</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Ações</th>
+                <td colSpan={6} className="text-center p-6 text-medium-text">Nenhum aluno encontrado.</td>
               </tr>
-            </thead>
-            <tbody className="bg-card-dark divide-y divide-slate-700">
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-slate-700/30 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <img className="h-10 w-10 rounded-full object-cover" src={student.photoUrl || DEFAULT_STUDENT_PHOTO(student.id)} alt={student.name} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div 
-                      className="text-sm font-medium text-primary-purple hover:underline cursor-pointer"
-                      onClick={() => handleOpenDetailsModal(student)} 
-                      title="Ver detalhes do aluno"
-                    >
-                      {student.name}
-                    </div>
-                    <div className="text-xs text-slate-400">{getPlanNameById(student.currentPlanId)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{student.cpf}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{student.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentStatusClass(student.paymentStatus)}`}>
-                      {student.paymentStatus}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleOpenEditModal(student)}
-                        title="Editar"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </Button>
-                       <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleOpenDeleteConfirm(student)}
-                        className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                        title="Excluir"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filteredStudents.length === 0 && (
-          <p className="text-center py-8 text-slate-400">Nenhum aluno encontrado.</p>
-        )}
-      </Card>
-      
-      {showStudentModal && (
-        <AddStudentModal 
-          isOpen={showStudentModal}
-          onClose={() => { setShowStudentModal(false); setEditingStudent(null);}}
-          onSave={handleSaveStudent}
-          initialData={editingStudent}
-        />
-      )}
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {showDeleteConfirmModal && studentToDelete && (
-        <ConfirmationModal
-          isOpen={showDeleteConfirmModal}
-          onClose={() => setShowDeleteConfirmModal(false)}
-          onConfirm={handleConfirmDelete}
-          title="Confirmar Exclusão"
-          message={`Tem certeza de que deseja excluir o aluno ${studentToDelete.name}? Esta ação não poderá ser desfeita.`}
-          confirmButtonText="Excluir"
-          cancelButtonText="Cancelar"
-          confirmButtonVariant="danger"
-        />
-      )}
-
-      {showDetailsModal && selectedStudentForDetails && ( 
-        <StudentDetailsModal
-          isOpen={showDetailsModal}
-          onClose={() => {setShowDetailsModal(false); setSelectedStudentForDetails(null);}}
-          student={selectedStudentForDetails}
-        />
-      )}
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingStudent ? 'Editar Aluno' : 'Adicionar Novo Aluno'}>
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-medium-text">Nome Completo</label>
+            <input type="text" name="name" id="name" value={formData.name || ''} onChange={handleFormChange} required className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-light-text focus:ring-brand-purple focus:border-brand-purple"/>
+          </div>
+          <div>
+            <label htmlFor="cpf" className="block text-sm font-medium text-medium-text">CPF</label>
+            <input type="text" name="cpf" id="cpf" value={formData.cpf || ''} onChange={handleFormChange} required className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-light-text focus:ring-brand-purple focus:border-brand-purple"/>
+          </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-medium-text">Telefone</label>
+            <input type="tel" name="phone" id="phone" value={formData.phone || ''} onChange={handleFormChange} required className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-light-text focus:ring-brand-purple focus:border-brand-purple"/>
+          </div>
+           <div>
+            <label htmlFor="membershipType" className="block text-sm font-medium text-medium-text">Tipo de Plano</label>
+            <select name="membershipType" id="membershipType" value={formData.membershipType || 'Mensal'} onChange={handleFormChange} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-light-text focus:ring-brand-purple focus:border-brand-purple">
+              <option value="Mensal">Mensal</option>
+              <option value="Trimestral">Trimestral</option>
+              <option value="Semestral">Semestral</option>
+              <option value="Anual">Anual</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="paymentStatus" className="block text-sm font-medium text-medium-text">Status do Pagamento</label>
+            <select name="paymentStatus" id="paymentStatus" value={formData.paymentStatus || 'Pendente'} onChange={handleFormChange} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-light-text focus:ring-brand-purple focus:border-brand-purple">
+              <option value="Em dia">Em dia</option>
+              <option value="Atrasado">Atrasado</option>
+              <option value="Pendente">Pendente</option>
+            </select>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button type="button" onClick={handleCloseModal} className="py-2 px-4 border border-gray-600 rounded-md text-medium-text hover:bg-gray-700 transition">Cancelar</button>
+            <button type="submit" className="py-2 px-4 bg-brand-purple hover:bg-purple-700 text-white rounded-md transition">Salvar</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
