@@ -25,75 +25,63 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
-    console.log("AuthContext: [fetchUserProfile] Attempting to fetch user profile for user ID:", supabaseUser.id);
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select(`
-          full_name,
-          avatar_url,
-          role_id,
-          user_roles (role_name)
-        `)
-        .eq('id', supabaseUser.id)
-        .single();
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select(`
+        full_name,
+        avatar_url,
+        role_id,
+        user_roles (role_name)
+      `)
+      .eq('id', supabaseUser.id)
+      .single();
 
-      if (error) {
-        console.error('AuthContext: [fetchUserProfile] Error fetching user profile:', error.message || JSON.stringify(error));
-        if (error.code === 'PGRST116') { 
-          console.warn("AuthContext: [fetchUserProfile] Profile not found for user, setting default student role.");
-          setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' });
-        } else {
-          setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' }); // Fallback
-        }
-        console.log("AuthContext: [fetchUserProfile] User state after profile fetch error/not found:", { id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' });
-        return;
-      }
-
-      if (profile) {
-        console.log("AuthContext: [fetchUserProfile] Profile data received:", JSON.stringify(profile));
-        let determinedRoleName = 'student'; // Default role
-        if (profile.user_roles && typeof (profile.user_roles as any).role_name === 'string') {
-          determinedRoleName = (profile.user_roles as any).role_name;
-        } else if (profile.user_roles !== null && profile.user_roles !== undefined) {
-          console.warn("AuthContext: [fetchUserProfile] profile.user_roles found, but role_name is not a string or format is unexpected:", JSON.stringify(profile.user_roles));
-        }
-        
-        const avatarPublicUrl = profile.avatar_url ? getStoragePublicUrl(SUPABASE_AVATARS_BUCKET, profile.avatar_url) : undefined;
-
-        const userToSet = {
-          id: supabaseUser.id,
-          email: supabaseUser.email,
-          name: profile.full_name || undefined,
-          avatar_url: avatarPublicUrl,
-          role_name: determinedRoleName,
-        };
-        setUser(userToSet);
-        console.log("AuthContext: [fetchUserProfile] User state set after successful profile fetch:", JSON.stringify(userToSet));
+    if (error) {
+      if (error.code === 'PGRST116') { 
+        setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' });
       } else {
-           console.warn("AuthContext: [fetchUserProfile] No profile data returned despite no error, setting default student role.");
-           setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' });
-           console.log("AuthContext: [fetchUserProfile] User state set (no profile data):", { id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' });
-      }
-    } catch (e: any) {
-        console.error("AuthContext: [fetchUserProfile] Exception during fetchUserProfile:", e.message || JSON.stringify(e));
+        console.error('Error fetching user profile:', error.message || JSON.stringify(error));
         setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' }); // Fallback
-        console.log("AuthContext: [fetchUserProfile] User state set after fetchUserProfile exception:", { id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' });
+      }
+      return;
+    }
+
+    if (profile) {
+      let determinedRoleName = 'student'; // Default role
+      // profile.user_roles comes as an object { role_name: string } or null from the join
+      if (profile.user_roles && typeof (profile.user_roles as any).role_name === 'string') {
+        determinedRoleName = (profile.user_roles as any).role_name;
+      } else if (profile.user_roles !== null && profile.user_roles !== undefined) {
+        // Log if user_roles is present but not in the expected shape or role_name is not a string
+        console.warn("AuthContext: profile.user_roles found, but role_name is not a string or format is unexpected:", profile.user_roles);
+      }
+      
+      // Note: profile.avatar_url is the path. getStoragePublicUrl is used in components.
+      const avatarPublicUrl = profile.avatar_url ? getStoragePublicUrl(SUPABASE_AVATARS_BUCKET, profile.avatar_url) : undefined;
+
+      setUser({
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        name: profile.full_name || undefined,
+        avatar_url: avatarPublicUrl, // Store the public URL directly if needed by Header immediately
+                                        // Or keep as path and let Header resolve. For consistency with StudentContext, Header should resolve.
+                                        // Let's keep it as path as StudentContext does. Header already handles getStoragePublicUrl.
+        role_name: determinedRoleName,
+      });
+    } else {
+         // This case means profile is null, but no specific PGRST116 error was caught prior.
+         // This might happen if .single() returns null without error, or if logic leads here.
+         setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' }); 
     }
   };
   
   useEffect(() => {
-    console.log("AuthContext: useEffect triggered. Initializing session check.");
     const getInitialSessionAsync = async () => {
-        console.log("AuthContext: [getInitialSessionAsync] Started.");
-        setIsLoading(true); 
         try {
-            console.log("AuthContext: [getInitialSessionAsync] Calling supabase.auth.getSession()...");
             const { data, error: sessionError } = await supabase.auth.getSession();
-            console.log("AuthContext: [getInitialSessionAsync] supabase.auth.getSession() completed.");
 
             if (sessionError) {
-                console.error("AuthContext: [getInitialSessionAsync] Error getting initial session:", sessionError.message);
+                console.error("AuthContext: Error getting initial session:", sessionError.message);
                 setSession(null);
                 setUser(null);
                 setIsAuthenticated(false);
@@ -101,53 +89,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             const currentInitialSession = data.session;
-            console.log("AuthContext: [getInitialSessionAsync] Initial session data:", JSON.stringify(currentInitialSession));
             setSession(currentInitialSession);
 
             if (currentInitialSession?.user) {
-                console.log("AuthContext: [getInitialSessionAsync] Session found. Fetching user profile for user:", currentInitialSession.user.id);
                 await fetchUserProfile(currentInitialSession.user);
                 setIsAuthenticated(true);
-                console.log("AuthContext: [getInitialSessionAsync] User authenticated based on initial session.");
             } else {
-                console.log("AuthContext: [getInitialSessionAsync] No initial session found or user is null.");
                 setUser(null);
                 setIsAuthenticated(false);
             }
-        } catch (e: any) {
-            console.error("AuthContext: [getInitialSessionAsync] Exception:", e.message || JSON.stringify(e));
+        } catch (e) {
+            console.error("AuthContext: Exception in getInitialSessionAsync:", e);
             setSession(null);
             setUser(null);
             setIsAuthenticated(false);
         } finally {
-            console.log("AuthContext: [getInitialSessionAsync] Finally block. Setting isLoading to false.");
             setIsLoading(false); 
         }
     };
 
     getInitialSessionAsync();
 
-    console.log("AuthContext: Setting up onAuthStateChange listener.");
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, currentSessionOnChange) => {
-        console.log("AuthContext: [onAuthStateChange] Triggered. Event:", _event, "New Session:", JSON.stringify(currentSessionOnChange));
         setSession(currentSessionOnChange);
         if (currentSessionOnChange?.user) {
-          console.log("AuthContext: [onAuthStateChange] Session user found. Fetching profile for user:", currentSessionOnChange.user.id);
           await fetchUserProfile(currentSessionOnChange.user);
           setIsAuthenticated(true);
-          console.log("AuthContext: [onAuthStateChange] User authenticated.");
         } else {
-          console.log("AuthContext: [onAuthStateChange] No session user. Setting user to null and isAuthenticated to false.");
           setUser(null);
           setIsAuthenticated(false);
         }
+        // Initial loading is primarily handled by getInitialSessionAsync's finally block.
+        // Subsequent changes might set isLoading if needed, but not for this app's current main loading screen.
       }
     );
-    console.log("AuthContext: onAuthStateChange listener set up.");
 
     return () => {
-      console.log("AuthContext: useEffect cleanup. Unsubscribing from onAuthStateChange.");
       authListener?.subscription?.unsubscribe();
     };
   }, []);
@@ -155,59 +133,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: AuthError | null }> => {
     if (!password) return { success: false, error: { message: "Password is required", name: "InputError", status: 400 } as AuthError };
-    
-    console.log("AuthContext: [login] Attempting login for email:", email);
-    setIsLoading(true);
-    let operationError: AuthError | null = null;
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      operationError = error;
-    } catch (e: any) {
-      console.error("AuthContext: [login] Exception during signInWithPassword:", e);
-      operationError = { name: "SignInException", message: e.message || "Unknown error during sign in" } as AuthError;
-    } finally {
-      setIsLoading(false);
+    setIsLoading(true); // For login operation specifically
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setIsLoading(false); // Reset after login attempt
+    if (error) {
+      console.error("Login failed:", error.message || JSON.stringify(error));
+      return { success: false, error };
     }
-
-    if (operationError) {
-      console.error("AuthContext: [login] Login failed:", operationError.message || JSON.stringify(operationError));
-      return { success: false, error: operationError };
-    }
-    console.log("AuthContext: [login] Login successful (Supabase call successful, onAuthStateChange will handle user state).");
+    // Auth state change will trigger profile fetch and set isAuthenticated
     return { success: true };
   };
 
   const logout = async (): Promise<{ error: AuthError | null }> => {
-    console.log("AuthContext: [logout] Attempting logout.");
-    setIsLoading(true);
-    let operationError: AuthError | null = null;
-    try {
-      const { error } = await supabase.auth.signOut();
-      operationError = error;
-    } catch (e: any) {
-      console.error("AuthContext: [logout] Exception during signOut:", e);
-      operationError = { name: "SignOutException", message: e.message || "Unknown error during sign out" } as AuthError;
-    } finally {
-      setIsLoading(false);
-    }
-    
-    if (operationError) {
-      console.error("AuthContext: [logout] Logout failed:", operationError.message || JSON.stringify(operationError));
-    } else {
-      console.log("AuthContext: [logout] Logout successful (Supabase call successful, onAuthStateChange will handle user state).");
-    }
-    return { error: operationError };
+    setIsLoading(true); // For logout operation
+    const { error } = await supabase.auth.signOut();
+    // onAuthStateChange will handle setting user, session, isAuthenticated
+    setIsLoading(false); // Reset after logout attempt
+    if (error) console.error("Logout failed:", error.message || JSON.stringify(error));
+    return { error };
   };
   
-  if (isLoading) { 
-     console.log("AuthContext: Render - isLoading is true. Displaying 'Carregando sistema...'");
+  // This is the main app loading screen condition
+  if (isLoading && !session && !user) { 
      return (
         <div className="flex items-center justify-center h-screen bg-primary-dark text-white">
           Carregando sistema...
         </div>
       );
   }
-  console.log("AuthContext: Render - isLoading is false. Rendering children.");
+
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, session, login, logout, isLoading }}>
       {children}
