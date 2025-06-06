@@ -56,21 +56,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn("AuthContext: profile.user_roles found, but role_name is not a string or format is unexpected:", profile.user_roles);
       }
       
-      // Note: profile.avatar_url is the path. getStoragePublicUrl is used in components.
       const avatarPublicUrl = profile.avatar_url ? getStoragePublicUrl(SUPABASE_AVATARS_BUCKET, profile.avatar_url) : undefined;
 
       setUser({
         id: supabaseUser.id,
         email: supabaseUser.email,
         name: profile.full_name || undefined,
-        avatar_url: avatarPublicUrl, // Store the public URL directly if needed by Header immediately
-                                        // Or keep as path and let Header resolve. For consistency with StudentContext, Header should resolve.
-                                        // Let's keep it as path as StudentContext does. Header already handles getStoragePublicUrl.
+        avatar_url: avatarPublicUrl, 
         role_name: determinedRoleName,
       });
     } else {
-         // This case means profile is null, but no specific PGRST116 error was caught prior.
-         // This might happen if .single() returns null without error, or if logic leads here.
          setUser({ id: supabaseUser.id, email: supabaseUser.email, role_name: 'student' }); 
     }
   };
@@ -112,16 +107,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, currentSessionOnChange) => {
-        setSession(currentSessionOnChange);
-        if (currentSessionOnChange?.user) {
-          await fetchUserProfile(currentSessionOnChange.user);
-          setIsAuthenticated(true);
-        } else {
+        try {
+          setSession(currentSessionOnChange);
+          if (currentSessionOnChange?.user) {
+            await fetchUserProfile(currentSessionOnChange.user);
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error("AuthContext: Error processing auth state change:", error);
+          // Ensure a clean fallback to unauthenticated state on error
           setUser(null);
+          setSession(null);
           setIsAuthenticated(false);
         }
-        // Initial loading is primarily handled by getInitialSessionAsync's finally block.
-        // Subsequent changes might set isLoading if needed, but not for this app's current main loading screen.
       }
     );
 
@@ -132,28 +133,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: AuthError | null }> => {
-    if (!password) return { success: false, error: { message: "Password is required", name: "InputError", status: 400 } as AuthError };
-    setIsLoading(true); // For login operation specifically
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setIsLoading(false); // Reset after login attempt
-    if (error) {
-      console.error("Login failed:", error.message || JSON.stringify(error));
-      return { success: false, error };
+    if (!password) {
+      return { success: false, error: { message: "Password is required", name: "InputError", status: 400 } as AuthError };
     }
-    // Auth state change will trigger profile fetch and set isAuthenticated
-    return { success: true };
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        console.error("Login failed:", error.message || JSON.stringify(error));
+        return { success: false, error };
+      }
+      // On success, onAuthStateChange will trigger, fetching profile and setting isAuthenticated.
+      return { success: true };
+    } catch (e: any) {
+      console.error("Login function caught an unexpected error:", e);
+      return { 
+        success: false, 
+        error: { 
+          message: e.message || "An unexpected error occurred during login.", 
+          name: "LoginException", 
+          status: 500 
+        } as AuthError 
+      };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = async (): Promise<{ error: AuthError | null }> => {
-    setIsLoading(true); // For logout operation
+    setIsLoading(true); 
     const { error } = await supabase.auth.signOut();
-    // onAuthStateChange will handle setting user, session, isAuthenticated
-    setIsLoading(false); // Reset after logout attempt
+    // User state and isAuthenticated will be updated by onAuthStateChange listener.
+    setIsLoading(false); 
     if (error) console.error("Logout failed:", error.message || JSON.stringify(error));
     return { error };
   };
   
-  // This is the main app loading screen condition
   if (isLoading && !session && !user) { 
      return (
         <div className="flex items-center justify-center h-screen bg-primary-dark text-white">
