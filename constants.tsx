@@ -1,6 +1,14 @@
 
 import React from 'react';
 
+// ==================================================================================
+// IMPORTANTE: Todos os ícones neste arquivo são definidos como SVGs inline.
+// Nenhuma biblioteca de ícones externa (como Heroicons) é importada ou utilizada.
+// Se ocorrerem erros de build relacionados à resolução de importações de ícones,
+// verifique se o Vercel está usando a versão mais recente deste arquivo e
+// considere limpar o cache de build do Vercel.
+// ==================================================================================
+
 export const IconDashboard = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
