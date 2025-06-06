@@ -1,3 +1,5 @@
+
+
 import React, { useState, FormEvent } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,11 +26,11 @@ const LoginPage: React.FC = () => {
       setError('E-mail e senha são obrigatórios.');
       return;
     }
-    const success = await login(email, password);
-    if (success) {
+    const result = await login(email, password);
+    if (result.success) {
       navigate('/dashboard');
     } else {
-      setError('Falha no login. Verifique suas credenciais.');
+      setError(result.error?.message || 'Falha no login. Verifique suas credenciais.');
     }
   };
 
@@ -54,6 +56,7 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="seu@email.com"
             icon={<EnvelopeIcon />}
+            aria-required="true"
           />
           <Input
             label="Senha"
@@ -65,9 +68,10 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Sua senha"
             icon={<LockClosedIcon />}
+            aria-required="true"
           />
 
-          {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red-400 text-center">{error}</p>}
 
           <div>
             <Button type="submit" className="w-full" isLoading={isLoading} size="lg">
