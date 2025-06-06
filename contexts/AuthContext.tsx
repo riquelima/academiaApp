@@ -72,6 +72,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   useEffect(() => {
     const getInitialSessionAsync = async () => {
+        setIsLoading(true); // Explicitly set loading to true for this operation
         try {
             const { data, error: sessionError } = await supabase.auth.getSession();
 
@@ -165,7 +166,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return { error: operationError };
   };
   
-  if (isLoading && !session && !user) { 
+  if (isLoading) { 
      return (
         <div className="flex items-center justify-center h-screen bg-primary-dark text-white">
           Carregando sistema...
