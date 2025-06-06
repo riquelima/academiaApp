@@ -106,7 +106,6 @@ export const IconCheckCircle = (props: React.SVGProps<SVGSVGElement>) => (
 
 export const IconActivity = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h situación.75m12.75 0h.75M5.25 12a6.75 6.75 0 0 1 13.5 0M1.5 12a10.5 10.5 0 0 1 21 0m-2.25 0a8.25 8.25 0 0 0-16.5 0" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4l3 8 4-16 3 8h4" />
     </svg>
 );
-

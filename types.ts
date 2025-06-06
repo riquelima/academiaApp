@@ -10,7 +10,7 @@ export interface StatCardData {
   value: string;
   change?: string;
   changeType?: 'positive' | 'negative' | 'neutral';
-  icon: React.ReactElement; // Changed from React.ReactNode
+  icon: React.ReactElement<React.SVGAttributes<SVGElement>>; // Changed from React.ReactElement
   details?: string;
 }
 
