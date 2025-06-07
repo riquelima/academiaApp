@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { trainingsData as initialTrainingsData } from '../data/mockData';
 import { Training, TrainingObjective } from '../types';
-import { IconPlus, IconEdit, IconTrash, IconUsers, IconActivity, IconDumbbell } from '../constants'; // Added IconDumbbell
+import { IconPlus, IconEdit, IconTrash, IconUsers, IconActivity, IconDumbbell } from '../constants.tsx'; // Explicitly use .tsx
 import Modal from '../components/Modal';
 
 const TrainingCard: React.FC<{ training: Training; onEdit: (training: Training) => void; onDelete: (id: string) => void; onAssociate: (id: string) => void; }> = 

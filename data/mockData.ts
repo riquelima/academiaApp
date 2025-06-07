@@ -1,6 +1,6 @@
 
 import { StatCardData, ScheduledClass, Student, Training, TrainingObjective } from '../types';
-import { IconUsers, IconTrendingUp, IconTrendingDown, IconSparkles, IconCheckCircle, IconDollar, IconActivity } from '../constants';
+import { IconUsers, IconTrendingUp, IconTrendingDown, IconSparkles, IconCheckCircle, IconDollar, IconActivity } from '../constants.tsx'; // Explicitly use .tsx
 import React from 'react';
 
 export const mockUser = {

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { StatCardData } from '../types';
-import { IconArrowUp, IconArrowDown } from '../constants';
+import { IconArrowUp, IconArrowDown } from '../constants.tsx'; // Explicitly use .tsx
 
 const StatCard: React.FC<StatCardData> = ({ title, value, change, changeType, icon, details }) => {
   const changeColor = changeType === 'positive' ? 'text-green-400' : changeType === 'negative' ? 'text-red-400' : 'text-medium-text';

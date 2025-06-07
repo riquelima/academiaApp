@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { useLocation } from 'react-router-dom'; // Added import
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../App';
-import { IconUserCircle } from '../constants';
+import { IconUserCircle } from '../constants.tsx'; // Explicitly use .tsx
 
 const Header: React.FC = () => {
   const { user } = useAuth();

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { studentsData as initialStudentsData } from '../data/mockData';
 import { Student } from '../types';
-import { IconSearch, IconPlus, IconEdit, IconTrash } from '../constants';
+import { IconSearch, IconPlus, IconEdit, IconTrash } from '../constants.tsx'; // Explicitly use .tsx
 import Modal from '../components/Modal';
 
 const StudentRow: React.FC<{ student: Student; onEdit: (student: Student) => void; onDelete: (id: string) => void }> = ({ student, onEdit, onDelete }) => {

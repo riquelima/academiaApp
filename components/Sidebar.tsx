@@ -3,7 +3,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { NavItem } from '../types';
-import { IconDashboard, IconUsers, IconDumbbell, IconCalendar, IconLogout } from '../constants';
+import { IconDashboard, IconUsers, IconDumbbell, IconCalendar, IconLogout } from '../constants.tsx'; // Explicitly use .tsx
 
 const Sidebar: React.FC = () => {
   const { logout } = useAuth();

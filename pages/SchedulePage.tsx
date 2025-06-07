@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import ScheduledClassItem from '../components/ScheduledClassItem';
 import { scheduledClassesData as initialScheduledClassesData } from '../data/mockData';
 import { ScheduledClass } from '../types';
-import { IconCalendar, IconPlus } from '../constants';
+import { IconCalendar, IconPlus } from '../constants.tsx'; // Explicitly use .tsx
 import Modal from '../components/Modal';
 
 const SchedulePage: React.FC = () => {
